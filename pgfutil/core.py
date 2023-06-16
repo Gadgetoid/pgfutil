@@ -4,9 +4,13 @@ from PIL import Image
 class Image2Font:
     FIRST_CHAR = 32
     TOTAL_CHARS = 105
+    DIACRITIC_MARKS = 8
 
     LAYOUT_COLS = 16
     LAYOUT_ROWS = 8
+
+    BLACK = (0, 0, 0, 255)
+    WHITE = (255, 255, 255, 0)
 
     def __init__(self, font_data):
         self.load_bytes(font_data)
@@ -35,7 +39,7 @@ class Image2Font:
         self.CHAR_DATA = font_data[chars_start:chars_end]
         self.ACCENT_DATA = font_data[chars_end:]
 
-        self._font_image = Image.new("RGBA", (self.width(), self.height()), color=(255, 255, 255, 0))
+        self._font_image = Image.new("RGBA", (self.width(), self.height()), color=self.WHITE)
 
         self.font2image()
 
@@ -104,19 +108,20 @@ class Image2Font:
                 self._font_image.putpixel((x, y), pen)
 
     def font2image(self):
-        for c in range(105):
+        for c in range(self.TOTAL_CHARS):
             x = (c % 16) * (self.CHAR_WIDTH + 1)
             y = (c // 16) * (self.CHAR_HEIGHT + 1)
             o = c * self.CHAR_WIDTH * self.bytes_per_column
             data = self.CHAR_DATA[o:o + (self.CHAR_WIDTH * self.bytes_per_column)]
             self.draw_char(x, y, data, self.CHAR_HEIGHT)
 
-        for a in range(8):
+        for a in range(self.DIACRITIC_MARKS):
             data = self.ACCENT_DATA[a * (self.CHAR_WIDTH + 2) + 2:]
             self.draw_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), data, 8)
 
     def image2font(self):
-        for c in range(105):
+        # Printable characters
+        for c in range(self.TOTAL_CHARS):
             x = (c % 16) * (self.CHAR_WIDTH + 1)
             y = (c // 16) * (self.CHAR_HEIGHT + 1)
             o = c * self.CHAR_WIDTH * self.bytes_per_column
@@ -127,6 +132,7 @@ class Image2Font:
             if self.bytes_per_column == 2:
                 char_data = [sum(char_data[i:i + 2]) for i in range(0, len(char_data), 2)]
 
+            # Figure out character widths by counting back from the right-hand edge until we find a non-clear char
             if c > 0:
                 for col in reversed(char_data):
                     if col == 0:
@@ -137,8 +143,8 @@ class Image2Font:
             else:
                 self.WIDTH_DATA[c] = int(self.CHAR_WIDTH // 2) # TODO: Make space width user configurable
 
-        for a in range(8):
-            o = (a * self.CHAR_WIDTH) + 2
+        for a in range(self.DIACRITIC_MARKS):
+            o = a * (self.CHAR_WIDTH + 2)
             self.ACCENT_DATA[o:o + self.CHAR_WIDTH] = self.get_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), 8)
 
     def get_char(self, x, y, height):
@@ -146,7 +152,7 @@ class Image2Font:
         data = [0 for _ in range(self.CHAR_WIDTH * bytes_per_column)]
         for cx in range(0, self.CHAR_WIDTH):
             for cy in range(0, height):
-                p = self._font_image.getpixel((x + cx, y + cy)) == (0, 0, 0, 255)
+                p = self._font_image.getpixel((x + cx, y + cy)) == self.BLACK
                 if bytes_per_column == 2:
                     data[cx * 2 + (cy < 8)] |= p << (cy % 8)
                 else:
@@ -161,5 +167,5 @@ class Image2Font:
             else:
                 column = data[cx]
             for cy in range(0, height):
-                p = (column & (1 << cy)) == (1 << cy)
-                self._font_image.putpixel((x + cx, y + cy), (0, 0, 0, 255) if p else (255, 255, 255, 0))
+                p = (column & (1 << cy))
+                self._font_image.putpixel((x + cx, y + cy), self.BLACK if p else self.WHITE)
