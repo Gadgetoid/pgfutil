@@ -1,10 +1,11 @@
-from tkinter import *
+from tkinter import Button, Canvas, Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from PIL import Image, ImageTk
+
+from PIL import Image, ImageTk, ImageDraw
 
 
 class PGFUtil:
-    def __init__(self, i2f, scale=10):
+    def __init__(self, i2f, scale=7):
         self.root = Tk()
         self.scale = scale
 
@@ -13,10 +14,15 @@ class PGFUtil:
         self.pen = None
         self.image = None
 
+        self.enable_chessboard = True
+        self.enable_onionskin = True
+
         self.btn_clear = Button(self.root, text="Clear", command=self.clear)
         self.btn_clear.grid(row=0, column=0)
+
         self.btn_save = Button(self.root, text="Save", command=self.save)
         self.btn_save.grid(row=0, column=1)
+
         self.btn_load = Button(self.root, text="Load", command=self.load)
         self.btn_load.grid(row=0, column=2)
 
@@ -33,6 +39,9 @@ class PGFUtil:
         self.root.mainloop()
 
     def configure_canvas(self):
+        self.update_chessboard()
+        self.update_onionskin()
+
         self.c.configure(width=self.i2f.width() * self.scale, height=self.i2f.height() * self.scale)
         self.font_photo_image = ImageTk.PhotoImage(self.get_scaled_image())
         if not self.image:
@@ -57,19 +66,53 @@ class PGFUtil:
         self.i2f.load_data(filename)
         self.configure_canvas()
 
+    def update_chessboard(self):
+        cw, ch = self.i2f.char_size
+        self.chessboard = Image.new("RGBA", self.i2f.font_image.size)
+        draw = ImageDraw.Draw(self.chessboard)
+        for y in range(self.i2f.LAYOUT_ROWS):
+            for x in range(self.i2f.LAYOUT_COLS):
+                cx = x * cw
+                cy = y * ch
+                fill = (255, 0, 255, 32) if (y + x) % 2 == 0 else (0, 255, 255, 32)
+                draw.rectangle((cx, cy, cx + cw, cy + ch), fill=fill)
+        print(f"Chessboard {cw}x{ch}")
+
+    def update_onionskin(self):
+        self.onionskin = self.i2f.font_image.copy().convert("RGBA")
+        w, h = self.onionskin.size
+        for y in range(h):
+            for x in range(w):
+                r, g, b, _ = self.onionskin.getpixel((x, y))
+                if (r, g, b) == (255, 255, 255):
+                    self.onionskin.putpixel((x, y), (255, 255, 255, 0))
+                else:
+                    self.onionskin.putpixel((x, y), (0, 0, 0, 50))
+
     def clear(self):
-        self.i2f.fill(1)
+        self.i2f.fill((255, 255, 255, 0))
         self.configure_canvas()
 
     def get_scaled_image(self):
-        return self.i2f.get_scaled(self.scale)
+        new_image = self.i2f.font_image
+
+        if self.chessboard:
+            new_image = Image.alpha_composite(self.chessboard, new_image)
+    
+        if self.onionskin:
+            new_image = Image.alpha_composite(new_image, self.onionskin)
+
+        w, h = new_image.size
+        new_image = new_image.resize((w * self.scale, h * self.scale), resample=Image.NEAREST)
+
+        return new_image
 
     def pen_black(self, event):
-        self.pen = 0
+        self.pen = (0, 0, 0, 255)
         self.paint(event)
 
     def pen_white(self, event):
-        self.pen = 1
+        self.pen = (255, 255, 255, 0)
         self.paint(event)
 
     def pen_off(self, event):

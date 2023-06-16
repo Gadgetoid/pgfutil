@@ -35,11 +35,13 @@ class Image2Font:
         self.CHAR_DATA = font_data[chars_start:chars_end]
         self.ACCENT_DATA = font_data[chars_end:]
 
-        self.font_image = Image.new("P", (self.width(), self.height()), color=1)
-        self.font_image.putpalette(b"\x00\x00\x00\xff\xff\xff")
+        self._font_image = Image.new("RGBA", (self.width(), self.height()), color=(255, 255, 255, 0))
 
         self.font2image()
-        self.onionskin()
+
+    @property
+    def char_size(self):
+        return self.CHAR_WIDTH + 1, self.CHAR_HEIGHT + 1
 
     @property
     def font_data(self):
@@ -51,16 +53,9 @@ class Image2Font:
         data += self.ACCENT_DATA
         return data
 
-    def onionskin(self):
-        self.clone = self.font_image.copy().convert("RGBA")
-        w, h = self.clone.size
-        for y in range(h):
-            for x in range(w):
-                r, g, b, _ = self.clone.getpixel((x, y))
-                if (r, g, b) == (255, 255, 255):
-                    self.clone.putpixel((x, y), (255, 255, 255, 0))
-                else:
-                    self.clone.putpixel((x, y), (0, 0, 0, 50))
+    @property
+    def font_image(self):
+        return self._font_image.convert("RGBA")
 
     def save_data(self, filename):
         if filename.endswith(".bitmapfont"):
@@ -68,18 +63,17 @@ class Image2Font:
                 f.write(bytes(self.font_data))
         else:
             self.font2image()
-            self.font_image.convert("RGB").save(filename)
+            self._font_image.convert("RGBA").save(filename)
 
     def load_data(self, filename):
         if filename.endswith(".bitmapfont"):
             self.load_bytes(open(filename, "rb").read())
         else:
-            pal = Image.new("P", (1, 1))
-            pal.putpalette(b"\x00\x00\x00\xff\xff\xff")
-            self.font_image = Image.open(filename).quantize(2, palette=pal)
-            self.font_image.putpalette(b"\x00\x00\x00\xff\xff\xff")
+            #pal = Image.new("P", (1, 1))
+            #pal.putpalette(b"\x00\x00\x00\xff\xff\xff\xff\x00")
+            self._font_image = Image.open(filename) #.quantize(2, palette=pal).convert("RGBA")
 
-            w, h = self.font_image.size
+            w, h = self._font_image.size
             self.CHAR_WIDTH = (w // self.LAYOUT_COLS) - 1
             self.CHAR_HEIGHT = (h // self.LAYOUT_ROWS) - 1
 
@@ -92,7 +86,6 @@ class Image2Font:
             self.ACCENT_DATA = [0 for _ in range((self.CHAR_WIDTH + 2) * 8)]
 
             self.image2font()
-            self.onionskin()
 
     def width(self):
         return (self.CHAR_WIDTH + 1) * self.LAYOUT_COLS
@@ -100,28 +93,20 @@ class Image2Font:
     def height(self):
         return (self.CHAR_HEIGHT + 1) * self.LAYOUT_ROWS
 
-    def get_scaled(self, scale, onionskin=True):
-        if onionskin:
-            new_image = Image.alpha_composite(self.font_image.convert("RGBA"), self.clone)
-        else:
-            new_image = self.font_image.convert("RGBA")
-        return new_image.resize((self.width() * scale, self.height() * scale), resample=Image.NEAREST)
-
     def putpixel(self, xy, pen):
-        self.font_image.putpixel(xy, pen)
+        self._font_image.putpixel(xy, pen)
         self.image2font()
 
     def fill(self, pen):
-        w, h = self.font_image.size
+        w, h = self._font_image.size
         for y in range(h):
             for x in range(w):
-                self.font_image.putpixel((x, y), pen)
+                self._font_image.putpixel((x, y), pen)
 
     def font2image(self):
         for c in range(105):
             x = (c % 16) * (self.CHAR_WIDTH + 1)
             y = (c // 16) * (self.CHAR_HEIGHT + 1)
-            char = c + self.FIRST_CHAR
             o = c * self.CHAR_WIDTH * self.bytes_per_column
             data = self.CHAR_DATA[o:o + (self.CHAR_WIDTH * self.bytes_per_column)]
             self.draw_char(x, y, data, self.CHAR_HEIGHT)
@@ -134,7 +119,6 @@ class Image2Font:
         for c in range(105):
             x = (c % 16) * (self.CHAR_WIDTH + 1)
             y = (c // 16) * (self.CHAR_HEIGHT + 1)
-            char = c + self.FIRST_CHAR
             o = c * self.CHAR_WIDTH * self.bytes_per_column
             char_data = self.get_char(x, y, self.CHAR_HEIGHT)
             self.CHAR_DATA[o:o + (self.CHAR_WIDTH * self.bytes_per_column)] = char_data
@@ -162,7 +146,7 @@ class Image2Font:
         data = [0 for _ in range(self.CHAR_WIDTH * bytes_per_column)]
         for cx in range(0, self.CHAR_WIDTH):
             for cy in range(0, height):
-                p = self.font_image.getpixel((x + cx, y + cy)) == 0
+                p = self._font_image.getpixel((x + cx, y + cy)) == (0, 0, 0, 255)
                 if bytes_per_column == 2:
                     data[cx * 2 + (cy < 8)] |= p << (cy % 8)
                 else:
@@ -177,5 +161,5 @@ class Image2Font:
             else:
                 column = data[cx]
             for cy in range(0, height):
-                p = (column & (1 << cy)) != (1 << cy)
-                self.font_image.putpixel((x + cx, y + cy), p)
+                p = (column & (1 << cy)) == (1 << cy)
+                self._font_image.putpixel((x + cx, y + cy), (0, 0, 0, 255) if p else (255, 255, 255, 0))
