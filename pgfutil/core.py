@@ -12,25 +12,29 @@ class Image2Font:
     BLACK = (0, 0, 0, 255)
     WHITE = (255, 255, 255, 0)
 
-    def __init__(self, font_data):
-        self.load_bytes(font_data)
+    def __init__(self, font_data=None, filename=None):
+        if font_data is not None:
+            self.load_bytes(font_data)
+        if filename is not None:
+            self.load_data(filename)
 
     @staticmethod
     def new_font(width, height):
         data = []
-        bytes_per_column = 2 if width > 8 else 1
-        data.append(width)
+        bytes_per_column = 2 if height > 8 else 1
         data.append(height)
+        data.append(width)
         data += [0 for _ in range(Image2Font.TOTAL_CHARS)]  # Widths
         data += [0 for _ in range(Image2Font.TOTAL_CHARS * width * bytes_per_column)]
-        data += [0 for _ in range(8 * ((width * bytes_per_column) + 2))]
+        data += [0 for _ in range(Image2Font.DIACRITIC_MARKS * (width + 2))]
+        return Image2Font(font_data=data)
 
     def load_bytes(self, font_data):
         font_data = list(font_data)
 
         self.CHAR_HEIGHT = font_data[0]
         self.CHAR_WIDTH = font_data[1]
-        self.bytes_per_column = 2 if self.CHAR_WIDTH > 8 else 1
+        self.bytes_per_column = 2 if self.CHAR_HEIGHT > 8 else 1
 
         chars_start = 1 + 1 + self.TOTAL_CHARS
         chars_end = chars_start + (self.TOTAL_CHARS * self.CHAR_WIDTH * self.bytes_per_column)
@@ -40,7 +44,7 @@ class Image2Font:
         self.ACCENT_DATA = font_data[chars_end:]
 
         self._font_image = Image.new("RGBA", (self.width(), self.height()), color=self.WHITE)
-
+        print(self._font_image.size, self.CHAR_WIDTH, self.CHAR_HEIGHT)
         self.font2image()
 
     @property
@@ -73,11 +77,22 @@ class Image2Font:
         if filename.endswith(".bitmapfont"):
             self.load_bytes(open(filename, "rb").read())
         else:
-            #pal = Image.new("P", (1, 1))
-            #pal.putpalette(b"\x00\x00\x00\xff\xff\xff\xff\x00")
-            self._font_image = Image.open(filename) #.quantize(2, palette=pal).convert("RGBA")
+            # Ensure the input image is quantized to Black/White
+            pal = Image.new("P", (1, 1))
+            pal.putpalette(b"\x00\x00\x00\xff\xff\xff")
+            self._font_image = Image.open(filename).convert("RGB").quantize(2, palette=pal).convert("RGBA")
 
             w, h = self._font_image.size
+
+            # Fix alpha
+            for y in range(h):
+                for x in range(w):
+                    r, g, b, a = self._font_image.getpixel((x, y))
+                    if (r, g, b) == self.WHITE[:-1]:
+                        self._font_image.putpixel((x, y), self.WHITE)
+                    if (r, g, b) == self.BLACK[:-1]:
+                        self._font_image.putpixel((x, y), self.BLACK)
+
             self.CHAR_WIDTH = (w // self.LAYOUT_COLS) - 1
             self.CHAR_HEIGHT = (h // self.LAYOUT_ROWS) - 1
 
@@ -98,6 +113,10 @@ class Image2Font:
         return (self.CHAR_HEIGHT + 1) * self.LAYOUT_ROWS
 
     def putpixel(self, xy, pen):
+        x, y = xy
+        print(x, y)
+        if (x + 1) % (self.CHAR_WIDTH + 1) == 0 or (y + 1) % (self.CHAR_HEIGHT + 1) == 0:
+            return
         self._font_image.putpixel(xy, pen)
         self.image2font()
 
@@ -117,7 +136,7 @@ class Image2Font:
 
         for a in range(self.DIACRITIC_MARKS):
             data = self.ACCENT_DATA[a * (self.CHAR_WIDTH + 2) + 2:]
-            self.draw_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), data, 8)
+            self.draw_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), data, min(self.CHAR_HEIGHT, 8))
 
     def image2font(self):
         # Printable characters
@@ -145,7 +164,7 @@ class Image2Font:
 
         for a in range(self.DIACRITIC_MARKS):
             o = a * (self.CHAR_WIDTH + 2)
-            self.ACCENT_DATA[o:o + self.CHAR_WIDTH] = self.get_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), 8)
+            self.ACCENT_DATA[o + 2:o + 2 + self.CHAR_WIDTH] = self.get_char(a * (self.CHAR_WIDTH + 1), 7 * (self.CHAR_HEIGHT + 1), min(self.CHAR_HEIGHT, 8))
 
     def get_char(self, x, y, height):
         bytes_per_column = 2 if height > 8 else 1
