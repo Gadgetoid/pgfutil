@@ -40,6 +40,9 @@ dependencies = []
 GitHub = "https://www.github.com/gadgetoid/pgfutil"
 Homepage = "https://www.gadgetoid.com"
 
+[project.scripts]
+pgfgui = "pgfutil.__main__:gui"
+
 [tool.hatch.version]
 path = "pgfutil/__init__.py"
 

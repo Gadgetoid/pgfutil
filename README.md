@@ -1,4 +1,4 @@
-# __TITLE__
+# Pico Graphics Font Util
 
 [![Build Status](https://img.shields.io/github/actions/workflow/status/gadgetoid/pgfutil/test.yml?branch=main)](https://github.com/gadgetoid/pgfutil/actions/workflows/test.yml)
 [![Coverage Status](https://coveralls.io/repos/github/gadgetoid/pgfutil/badge.svg?branch=master)](https://coveralls.io/github/gadgetoid/pgfutil?branch=master)
@@ -6,6 +6,8 @@
 [![Python Versions](https://img.shields.io/pypi/pyversions/pgfutil.svg)](https://pypi.python.org/pypi/pgfutil)
 
 Generated from [the Pimoroni Python Boilerplate](https://github.com/gadgetoid/boilerplate-python).
+
+## Installing
 
 Stable library from PyPi:
 
@@ -19,3 +21,7 @@ Latest/development library from GitHub:
 * `cd pgfutil`
 * `pip3 install .`
 
+
+## Running
+
+Right now you must run with `python3 -m pgfutil` or `pgfgui`.

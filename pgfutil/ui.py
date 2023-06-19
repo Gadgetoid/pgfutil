@@ -9,6 +9,7 @@ from .core import Image2Font
 class PGFUtil:
     def __init__(self, scale=6, filename=None):
         self.root = Tk()
+        self.root.wm_title("PicoGraphics Font Util")
         self.scale = scale
 
         self.pen = None
