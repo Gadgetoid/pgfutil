@@ -1,8 +1,7 @@
-from tkinter import Button, Canvas, Tk, Scale, HORIZONTAL
+from tkinter import HORIZONTAL, Button, Canvas, Scale, Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
-from tkinter.dialog import Dialog
 
-from PIL import Image, ImageTk, ImageDraw
+from PIL import Image, ImageDraw, ImageTk
 
 from .core import Image2Font
 
