@@ -151,7 +151,7 @@ class PGFUtil:
 
         if self.chessboard:
             new_image = Image.alpha_composite(self.chessboard, new_image)
-    
+
         if self.onionskin:
             new_image = Image.alpha_composite(new_image, self.onionskin)
 
@@ -159,7 +159,7 @@ class PGFUtil:
         new_image = new_image.resize((w * self.scale, h * self.scale), resample=Image.NEAREST)
 
         return new_image
-    
+
     def input_dispatch(self, event):
         if event.type == "6": # Motion
             self.paint(event)
