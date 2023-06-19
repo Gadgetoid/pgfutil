@@ -3,5 +3,5 @@ def test_setup(test):
 
 
 def test_version():
-    import PROJECT_NAME
-    assert PROJECT_NAME.__version__ == '0.0.1'
+    import pgfutil
+    assert pgfutil.__version__ == '0.0.1'
